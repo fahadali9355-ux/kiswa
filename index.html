@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiswa — Premium Wear & Luxury Watches</title>
+    <meta name="description" content="Premium everyday wear and luxury watches. Shop the finest clothing and timepieces with fast delivery across Pakistan.">
+    <meta property="og:title" content="Kiswa — Wear What Lasts">
+    <meta property="og:description" content="Premium everyday wear and luxury watches crafted for those who refuse to settle.">
+    <meta name="theme-color" content="#0A0A0A">
+    
+    <style>
+      #app-loader {
+        position: fixed;
+        inset: 0;
+        background-color: #0A0A0A;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease-out;
+      }
+      #app-loader h1 {
+        color: #D4AF37;
+        font-family: serif; /* Will be replaced by Playfair if loaded */
+        font-size: 2.5rem;
+        letter-spacing: 0.1em;
+        margin: 0;
+        animation: pulse 2s infinite ease-in-out;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      .app-loaded #app-loader {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-loader">
+      <h1>Kiswa</h1>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.onload = () => {
+        setTimeout(() => {
+          document.body.classList.add('app-loaded');
+        }, 1000);
+      };
+    </script>
+  </body>
+</html>
+
