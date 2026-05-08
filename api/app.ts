@@ -302,7 +302,18 @@ app.use("/api/admin", verifyToken, isAdmin);
 
 app.get("/api/admin/orders", async (req, res) => {
   try {
-    const orders = await prisma.order.findMany({ include: { user: true, items: true }, orderBy: { createdAt: "desc" } });
+    const orders = await prisma.order.findMany({ 
+      include: { 
+        user: true, 
+        items: { 
+          include: { 
+            product: true, 
+            variant: true 
+          } 
+        } 
+      }, 
+      orderBy: { createdAt: "desc" } 
+    });
     res.json(orders);
   } catch (error) {
     res.json([]);

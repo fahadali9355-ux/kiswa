@@ -138,6 +138,7 @@ export const authFetch = async (url: string, options: any = {}) => {
 function DashboardView() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   useEffect(() => {
     authFetch('/api/admin/orders?limit=5')
@@ -193,6 +194,7 @@ function DashboardView() {
                   <th className="px-4 py-3 font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Time</th>
+                  <th className="px-4 py-3 font-medium text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-2">
@@ -203,16 +205,39 @@ function DashboardView() {
                     <td className="px-4 py-4">Rs. {order.totalAmount.toLocaleString()}</td>
                     <td className={`px-4 py-4 font-medium ${getStatusColor(order.status)}`}>{order.status}</td>
                     <td className="px-4 py-4 text-foreground/60">{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-4 text-right">
+                      <button onClick={() => setSelectedOrder(order)} className="text-accent hover:underline text-xs">View</button>
+                    </td>
                   </tr>
                 ))}
                 {recentOrders.length === 0 && (
-                  <tr><td colSpan={5} className="py-8 text-center text-foreground/50">No recent orders found.</td></tr>
+                  <tr><td colSpan={6} className="py-8 text-center text-foreground/50">No recent orders found.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <OrderDetailModal 
+            order={selectedOrder} 
+            onClose={() => setSelectedOrder(null)} 
+            updateStatus={(id, status) => {
+              authFetch(`/api/admin/orders/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+              }).then(() => {
+                // Refresh local state
+                setRecentOrders(recentOrders.map(o => o.id === id ? { ...o, status } : o));
+                setSelectedOrder({ ...selectedOrder, status });
+              });
+            }} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -686,6 +711,7 @@ function OrdersView({ showToast }: { showToast: any }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   const fetchOrders = () => {
     setLoading(true);
@@ -750,6 +776,7 @@ function OrdersView({ showToast }: { showToast: any }) {
               <th className="px-6 py-4 font-medium">Status</th>
               <th className="px-6 py-4 font-medium">WA</th>
               <th className="px-6 py-4 font-medium">Date</th>
+              <th className="px-6 py-4 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-2">
@@ -776,11 +803,171 @@ function OrdersView({ showToast }: { showToast: any }) {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-foreground/60">{new Date(order.createdAt).toLocaleDateString()}</td>
+                <td className="px-6 py-4 text-right">
+                  <button 
+                    onClick={() => setSelectedOrder(order)}
+                    className="text-accent hover:underline text-xs font-medium"
+                  >
+                    View Details
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} updateStatus={updateStatus} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function OrderDetailModal({ order, onClose, updateStatus }) {
+  const getStatusColor = (status: string) => {
+    const map: any = { PENDING: 'text-amber-500', PROCESSING: 'text-blue-500', SHIPPED: 'text-purple-500', DELIVERED: 'text-green-500', CANCELLED: 'text-red-500' };
+    return map[status] || 'text-foreground';
+  };
+
+  const address = typeof order.shippingAddress === 'string' ? (order.shippingAddress.startsWith('{') ? JSON.parse(order.shippingAddress) : order.shippingAddress) : order.shippingAddress;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="relative w-full max-w-4xl bg-[#0D0D0D] border border-surface-2 rounded-sm shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-surface-2 flex justify-between items-center bg-[#111]">
+          <div>
+            <h3 className="font-serif text-2xl text-accent">Order Details</h3>
+            <p className="text-xs text-foreground/50 font-mono mt-1 uppercase tracking-widest">ID: {order.id}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-2 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Customer & Shipping */}
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-xs uppercase tracking-widest text-foreground/40 font-bold mb-3">Customer Info</h4>
+                <div className="bg-surface-1 p-4 rounded-sm border border-surface-2 space-y-2">
+                  <p className="text-sm font-medium">{order.guestName || order.user?.name || 'Guest Customer'}</p>
+                  <p className="text-xs text-foreground/60">{order.guestEmail || order.user?.email || 'No email provided'}</p>
+                  <p className="text-xs text-foreground/60">{order.guestPhone || 'No phone provided'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs uppercase tracking-widest text-foreground/40 font-bold mb-3">Shipping Address</h4>
+                <div className="bg-surface-1 p-4 rounded-sm border border-surface-2">
+                  {typeof address === 'object' ? (
+                    <div className="text-xs text-foreground/80 space-y-1">
+                      <p>{address.address}</p>
+                      <p>{address.city}, {address.postalCode}</p>
+                      {address.country && <p>{address.country}</p>}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/80 leading-relaxed">{address}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs uppercase tracking-widest text-foreground/40 font-bold mb-3">Order Status</h4>
+                <select 
+                  value={order.status}
+                  onChange={(e) => updateStatus(order.id, e.target.value)}
+                  className={`w-full text-xs font-bold tracking-wider rounded px-3 py-2 outline-none cursor-pointer appearance-none bg-surface-2 border border-surface-2 ${getStatusColor(order.status)}`}
+                >
+                  {['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(s => <option key={s} value={s} className="bg-[#111] text-foreground">{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Items & Payment */}
+            <div className="md:col-span-2 space-y-6">
+              <div>
+                <h4 className="text-xs uppercase tracking-widest text-foreground/40 font-bold mb-3">Order Items</h4>
+                <div className="bg-surface-1 rounded-sm border border-surface-2 overflow-hidden">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-[10px] uppercase bg-surface-2 text-foreground/50 tracking-wider">
+                      <tr>
+                        <th className="px-4 py-2 font-medium">Product</th>
+                        <th className="px-4 py-2 font-medium text-center">Qty</th>
+                        <th className="px-4 py-2 font-medium text-right">Price</th>
+                        <th className="px-4 py-2 font-medium text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-2/50">
+                      {order.items?.map((item: any) => (
+                        <tr key={item.id}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-foreground">{item.product?.name || 'Unknown Product'}</div>
+                            {(item.variant?.size || item.variant?.color) && (
+                              <div className="text-[10px] text-accent mt-0.5">
+                                {item.variant.size && `Size: ${item.variant.size}`}
+                                {item.variant.size && item.variant.color && ' | '}
+                                {item.variant.color && `Color: ${item.variant.color}`}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">{item.quantity}</td>
+                          <td className="px-4 py-3 text-right">Rs. {item.price.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right font-medium text-accent">Rs. {(item.price * item.quantity).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-surface-2/30">
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-foreground/50 font-bold">Subtotal</td>
+                        <td className="px-4 py-3 text-right font-bold text-accent">Rs. {order.totalAmount.toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-surface-1 p-4 rounded-sm border border-surface-2">
+                  <h4 className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold mb-2">Payment Method</h4>
+                  <p className="text-sm font-medium text-accent uppercase">{order.paymentMethod || 'Not specified'}</p>
+                </div>
+                <div className="bg-surface-1 p-4 rounded-sm border border-surface-2">
+                  <h4 className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold mb-2">Order Date</h4>
+                  <p className="text-sm font-medium">{new Date(order.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-surface-2 bg-[#111] flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2 bg-accent text-background text-sm font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors"
+          >
+            Close Detail
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

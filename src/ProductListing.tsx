@@ -16,6 +16,7 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [toast, setToast] = useState('');
+  const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState<any | null>(null);
   
   const isLoggedIn = !!localStorage.getItem('kiswa_token');
   
@@ -298,7 +299,10 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
 
                   {/* Quick View */}
                   <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <button className="w-full py-3 bg-black/80 backdrop-blur-sm text-white text-sm font-medium uppercase tracking-wider hover:bg-accent hover:text-black transition-colors rounded-sm">
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedQuickViewProduct(product); }}
+                      className="w-full py-3 bg-black/80 backdrop-blur-sm text-white text-sm font-medium uppercase tracking-wider hover:bg-accent hover:text-black transition-colors rounded-sm"
+                    >
                       Quick View
                     </button>
                   </div>
@@ -420,6 +424,180 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
           </>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedQuickViewProduct && (
+          <QuickViewModal product={selectedQuickViewProduct} onClose={() => setSelectedQuickViewProduct(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
+}
+
+function QuickViewModal({ product, onClose }) {
+    const [selectedSize, setSelectedSize] = useState(product.variants?.[0]?.size || '');
+    const [selectedColor, setSelectedColor] = useState(product.variants?.[0]?.color || '');
+    const [quantity, setQuantity] = useState(1);
+    const [mainImage, setMainImage] = useState(product.images?.[0] || '');
+
+    const currentVariant = product.variants?.find((v: any) => 
+        (selectedSize ? v.size === selectedSize : true) && 
+        (selectedColor ? v.color === selectedColor : true)
+    );
+
+    const price = product.basePrice + (currentVariant?.priceAdjustment || 0);
+
+    const addToCart = () => {
+        const cartItem = {
+            id: `${product.id}-${selectedSize}-${selectedColor}`,
+            productId: product.id,
+            name: product.name,
+            price: price,
+            image: product.images?.[0],
+            quantity: quantity,
+            variantId: currentVariant?.id,
+            size: selectedSize,
+            color: selectedColor
+        };
+
+        const existingCart = JSON.parse(localStorage.getItem('kiswa_cart') || '[]');
+        const existingItemIndex = existingCart.findIndex((item: any) => item.id === cartItem.id);
+
+        if (existingItemIndex > -1) {
+            existingCart[existingItemIndex].quantity += quantity;
+        } else {
+            existingCart.push(cartItem);
+        }
+
+        localStorage.setItem('kiswa_cart', JSON.stringify(existingCart));
+        window.dispatchEvent(new Event('cartUpdated'));
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            />
+            <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative w-full max-w-4xl bg-[#0D0D0D] border border-surface-2 rounded-sm overflow-hidden flex flex-col md:flex-row shadow-2xl"
+            >
+                <button onClick={onClose} className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white hover:text-accent rounded-full transition-colors">
+                    <X className="w-5 h-5" />
+                </button>
+
+                {/* Left: Images */}
+                <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col gap-4">
+                    <div className="aspect-[3/4] rounded overflow-hidden bg-[#1A1A1A]">
+                        <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
+                    </div>
+                    {product.images?.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                            {product.images.map((img: string, idx: number) => (
+                                <button 
+                                    key={idx} 
+                                    onClick={() => setMainImage(img)}
+                                    className={`w-16 h-20 rounded overflow-hidden border-2 flex-shrink-0 transition-colors ${mainImage === img ? 'border-accent' : 'border-transparent'}`}
+                                >
+                                    <img src={img} className="w-full h-full object-cover" />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Info */}
+                <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
+                    <div className="mb-6">
+                        <div className="text-xs text-accent uppercase tracking-widest font-bold mb-2">Quick View</div>
+                        <h2 className="text-3xl font-serif text-foreground mb-2">{product.name}</h2>
+                        <div className="text-2xl font-bold text-accent">Rs. {price.toLocaleString()}</div>
+                    </div>
+
+                    <div className="space-y-6 mb-8">
+                        {/* Size Selection */}
+                        {product.variants?.some(v => v.size) && (
+                            <div>
+                                <label className="block text-xs uppercase tracking-widest text-foreground/50 mb-3">Size</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {Array.from(new Set(product.variants.filter(v => v.size).map(v => v.size))).map((size: any) => (
+                                        <button 
+                                            key={size}
+                                            onClick={() => setSelectedSize(size)}
+                                            className={`w-10 h-10 border flex items-center justify-center text-sm font-medium transition-colors ${selectedSize === size ? 'bg-accent border-accent text-background' : 'border-surface-2 text-foreground hover:border-accent'}`}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Color Selection */}
+                        {product.variants?.some(v => v.color) && (
+                            <div>
+                                <label className="block text-xs uppercase tracking-widest text-foreground/50 mb-3">Color</label>
+                                <div className="flex flex-wrap gap-3">
+                                    {Array.from(new Set(product.variants.filter(v => v.color).map(v => v.color))).map((color: any) => (
+                                        <button 
+                                            key={color}
+                                            onClick={() => setSelectedColor(color)}
+                                            className={`w-8 h-8 rounded-full border-2 p-0.5 transition-transform ${selectedColor === color ? 'border-accent scale-110' : 'border-transparent'}`}
+                                        >
+                                            <div 
+                                                className="w-full h-full rounded-full border border-surface-2" 
+                                                style={{ backgroundColor: color.toLowerCase().replace(' ', '') }} 
+                                                title={color}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Quantity */}
+                        <div>
+                            <label className="block text-xs uppercase tracking-widest text-foreground/50 mb-3">Quantity</label>
+                            <div className="flex items-center gap-4">
+                                <div className="flex border border-surface-2 rounded overflow-hidden">
+                                    <button 
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                        className="px-4 py-2 hover:bg-surface-2 transition-colors border-r border-surface-2"
+                                    >-</button>
+                                    <div className="px-6 py-2 text-sm font-medium">{quantity}</div>
+                                    <button 
+                                        onClick={() => setQuantity(quantity + 1)}
+                                        className="px-4 py-2 hover:bg-surface-2 transition-colors border-l border-surface-2"
+                                    >+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <button 
+                            onClick={addToCart}
+                            className="w-full py-4 bg-accent text-background text-sm font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors"
+                        >
+                            Add to Cart
+                        </button>
+                        <Link 
+                            to={`/product/${product.slug}`}
+                            onClick={onClose}
+                            className="w-full py-4 border border-surface-2 text-center text-sm font-medium uppercase tracking-widest hover:bg-surface-2 transition-colors"
+                        >
+                            View Full Details
+                        </Link>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
 }
