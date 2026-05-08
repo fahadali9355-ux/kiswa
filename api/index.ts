@@ -11,8 +11,7 @@ export default async (req: any, res: any) => {
       error: "Server Startup Error",
       message: err.message,
       stack: err.stack,
-      path: process.cwd(),
-      dir: __dirname
+      path: process.cwd()
     });
   }
 };
