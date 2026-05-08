@@ -12,7 +12,7 @@ import { verifyToken, isAdmin } from "./authMiddleware";
 import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "./src/services/whatsappService";
 import { uploadSingleImage, uploadMultipleImages } from "./src/uploadMiddleware";
 
-const prisma = new PrismaClient();
+import prisma from "./src/lib/prisma";
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -33,9 +33,6 @@ const orderLimiter = rateLimit({
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-
-export { app };
-export default app;
 
   app.use(helmet({
     contentSecurityPolicy: false,
@@ -923,6 +920,10 @@ export default app;
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+}
+
+export { app };
+export default app;
 
   // Only listen if not on Vercel
   if (!process.env.VERCEL) {
