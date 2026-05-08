@@ -8,9 +8,9 @@ import compression from "compression";
 import morgan from "morgan";
 import cors from "cors";
 import { verifyToken, isAdmin } from "../authMiddleware";
-import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "./services/whatsappService";
-import { uploadSingleImage, uploadMultipleImages } from "./uploadMiddleware";
-import prisma from "./lib/prisma";
+import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "../src/services/whatsappService";
+import { uploadSingleImage, uploadMultipleImages } from "../src/uploadMiddleware";
+import prisma from "../src/lib/prisma";
 
 const app = express();
 
