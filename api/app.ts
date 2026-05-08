@@ -60,7 +60,6 @@ app.get("/api/products", async (req, res) => {
       orderBy: { createdAt: "desc" }
     });
 
-    // RETURN ARRAY DIRECTLY (Fixes .map() error in Admin)
     res.json(products.map(p => ({ ...p, images: p.images ? p.images.split(',') : [] })));
   } catch (error) {
     res.status(500).json([]);
@@ -268,20 +267,28 @@ app.get("/api/admin/categories", async (req, res) => {
 });
 
 app.post("/api/admin/categories", uploadSingleImage, async (req, res) => {
-  const { name, slug, description, isActive } = req.body;
-  const cat = await prisma.category.create({
-    data: { name, slug, description, isActive: isActive === 'true', image: req.file?.path }
-  });
-  res.json(cat);
+  try {
+    const { name, slug, description, isActive } = req.body;
+    const cat = await prisma.category.create({
+      data: { name, slug, description, isActive: isActive === 'true', image: req.file?.path }
+    });
+    res.json(cat);
+  } catch (e) {
+    res.status(400).json({ error: "Failed" });
+  }
 });
 
 app.put("/api/admin/categories/:id", uploadSingleImage, async (req, res) => {
-  const { name, slug, description, isActive } = req.body;
-  const cat = await prisma.category.update({
-    where: { id: req.params.id },
-    data: { name, slug, description, isActive: isActive === 'true', image: req.file?.path || undefined }
-  });
-  res.json(cat);
+  try {
+    const { name, slug, description, isActive } = req.body;
+    const cat = await prisma.category.update({
+      where: { id: req.params.id },
+      data: { name, slug, description, isActive: isActive === 'true', image: req.file?.path || undefined }
+    });
+    res.json(cat);
+  } catch (e) {
+    res.status(400).json({ error: "Failed" });
+  }
 });
 
 app.delete("/api/admin/categories/:id", async (req, res) => {
@@ -291,27 +298,34 @@ app.delete("/api/admin/categories/:id", async (req, res) => {
 
 app.post("/api/admin/products", uploadMultipleImages, async (req, res) => {
   try {
-    const { variants, ...productData } = req.body;
+    const { name, slug, description, basePrice, categoryId, isFeatured, isActive, variants } = req.body;
     const files = req.files as Express.Multer.File[];
     const images = files ? files.map(f => f.path).join(',') : "";
+    
     const product = await prisma.product.create({
       data: { 
-        ...productData, 
-        basePrice: Number(productData.basePrice), 
+        name, 
+        slug, 
+        description, 
+        basePrice: Number(basePrice), 
+        categoryId,
+        isFeatured: isFeatured === 'true',
+        isActive: isActive === 'true',
         images, 
-        variants: variants ? { create: JSON.parse(variants) } : undefined 
+        variants: variants ? { create: JSON.parse(variants).map((v: any) => ({ ...v, stockQty: Number(v.stockQty), priceAdjustment: Number(v.priceAdjustment) })) } : undefined 
       },
       include: { variants: true }
     });
     res.json(product);
   } catch (error) {
-    res.status(400).json({ error: "Failed" });
+    console.error("Error creating product:", error);
+    res.status(400).json({ error: "Failed", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
 app.put("/api/admin/products/:id", uploadMultipleImages, async (req, res) => {
   try {
-    const { variants, existingImages, ...productData } = req.body;
+    const { name, slug, description, basePrice, categoryId, isFeatured, isActive, variants, existingImages } = req.body;
     const files = req.files as Express.Multer.File[];
     const newImages = files ? files.map(f => f.path) : [];
     const keepImages = existingImages ? JSON.parse(existingImages) : [];
@@ -321,14 +335,20 @@ app.put("/api/admin/products/:id", uploadMultipleImages, async (req, res) => {
     const product = await prisma.product.update({
       where: { id: req.params.id },
       data: {
-        ...productData,
-        basePrice: Number(productData.basePrice),
+        name,
+        slug,
+        description,
+        basePrice: Number(basePrice),
+        categoryId,
+        isFeatured: isFeatured === 'true',
+        isActive: isActive === 'true',
         images: finalImages,
-        variants: variants ? { create: JSON.parse(variants) } : undefined
+        variants: variants ? { create: JSON.parse(variants).map((v: any) => ({ ...v, stockQty: Number(v.stockQty), priceAdjustment: Number(v.priceAdjustment) })) } : undefined
       }
     });
     res.json(product);
   } catch (error) {
+    console.error("Error updating product:", error);
     res.status(400).json({ error: "Failed" });
   }
 });
