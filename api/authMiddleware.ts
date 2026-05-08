@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import prisma from './src/lib/prisma';
+import prisma from './prisma';
 
 // Extend the Express Request type
 declare global {
