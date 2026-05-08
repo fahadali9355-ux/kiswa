@@ -300,6 +300,49 @@ app.put("/api/auth/customer/profile", verifyToken, async (req, res) => {
 // --- ADMIN ROUTES ---
 app.use("/api/admin", verifyToken, isAdmin);
 
+app.get("/api/admin/stats", async (req, res) => {
+  try {
+    const totalOrders = await prisma.order.count();
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayOrders = await prisma.order.count({
+      where: {
+        createdAt: {
+          gte: today
+        }
+      }
+    });
+
+    const totalRevenue = await prisma.order.aggregate({
+      where: {
+        status: {
+          not: 'CANCELLED'
+        }
+      },
+      _sum: {
+        totalAmount: true
+      }
+    });
+
+    const pendingOrders = await prisma.order.count({
+      where: {
+        status: 'PENDING'
+      }
+    });
+
+    res.json({
+      totalOrders,
+      todayOrders,
+      totalRevenue: totalRevenue._sum.totalAmount || 0,
+      pendingOrders
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+
 app.get("/api/admin/orders", async (req, res) => {
   try {
     const orders = await prisma.order.findMany({ 

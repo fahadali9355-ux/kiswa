@@ -139,6 +139,12 @@ function DashboardView() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    todayOrders: 0,
+    totalRevenue: 0,
+    pendingOrders: 0
+  });
 
   useEffect(() => {
     authFetch('/api/admin/orders?limit=5')
@@ -151,6 +157,11 @@ function DashboardView() {
         setRecentOrders([]);
         setLoading(false);
       });
+
+    authFetch('/api/admin/stats')
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(err => console.error("Error fetching stats:", err));
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -164,10 +175,10 @@ function DashboardView() {
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Orders', value: '1,248' },
-          { label: "Today's Orders", value: '24' },
-          { label: 'Total Revenue', value: 'Rs. 4,560,000' },
-          { label: 'Pending Orders', value: '12' },
+          { label: 'Total Orders', value: stats.totalOrders.toLocaleString() },
+          { label: "Today's Orders", value: stats.todayOrders.toLocaleString() },
+          { label: 'Total Revenue', value: `Rs. ${stats.totalRevenue.toLocaleString()}` },
+          { label: 'Pending Orders', value: stats.pendingOrders.toLocaleString() },
         ].map((stat, i) => (
           <div key={i} className="p-6 bg-surface-2 border border-surface-2 rounded-sm shadow-sm flex flex-col justify-center">
             <p className="text-3xl font-serif text-accent mb-2">{stat.value}</p>
