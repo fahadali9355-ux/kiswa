@@ -140,10 +140,14 @@ function DashboardView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/orders?limit=5')
+    authFetch('/api/admin/orders?limit=5')
       .then((res) => res.json())
       .then((data) => {
-        setRecentOrders(data);
+        setRecentOrders(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setRecentOrders([]);
         setLoading(false);
       });
   }, []);
@@ -233,8 +237,15 @@ function CategoriesView({ showToast }: { showToast: any }) {
     setLoading(true);
     fetch('/api/categories')
       .then(res => res.json())
-      .then(data => { setCategories(data); setLoading(false); })
-      .catch(() => { showToast('Error fetching categories', 'error'); setLoading(false); });
+      .then(data => { 
+        setCategories(Array.isArray(data) ? data : []); 
+        setLoading(false); 
+      })
+      .catch(() => { 
+        showToast('Error fetching categories', 'error'); 
+        setCategories([]);
+        setLoading(false); 
+      });
   };
 
   useEffect(() => { fetchCategories(); }, []);
@@ -422,9 +433,14 @@ function ProductsView({ showToast }: { showToast: any }) {
       fetch('/api/categories').then(res => res.json())
     ]).then(([prodData, catData]) => {
       setProducts(prodData.products || []);
-      setCategories(catData);
+      setCategories(Array.isArray(catData) ? catData : []);
       setLoading(false);
-    }).catch(() => { showToast('Error fetching data', 'error'); setLoading(false); });
+    }).catch(() => { 
+      showToast('Error fetching data', 'error'); 
+      setProducts([]);
+      setCategories([]);
+      setLoading(false); 
+    });
   };
 
   useEffect(() => { fetchProducts(); }, []);
@@ -675,8 +691,15 @@ function OrdersView({ showToast }: { showToast: any }) {
     setLoading(true);
     authFetch('/api/admin/orders')
       .then(res => res.json())
-      .then(data => { setOrders(data); setLoading(false); })
-      .catch(() => { showToast('Error fetching orders', 'error'); setLoading(false); });
+      .then(data => { 
+        setOrders(Array.isArray(data) ? data : []); 
+        setLoading(false); 
+      })
+      .catch(() => { 
+        showToast('Error fetching orders', 'error'); 
+        setOrders([]);
+        setLoading(false); 
+      });
   };
 
   useEffect(() => { fetchOrders(); }, []);
@@ -769,8 +792,15 @@ function CustomersView({ showToast }: { showToast: any }) {
   useEffect(() => {
     authFetch('/api/admin/customers')
       .then(res => res.json())
-      .then(data => { setCustomers(data); setLoading(false); })
-      .catch(() => { showToast('Error fetching customers', 'error'); setLoading(false); });
+      .then(data => { 
+        setCustomers(Array.isArray(data) ? data : []); 
+        setLoading(false); 
+      })
+      .catch(() => { 
+        showToast('Error fetching customers', 'error'); 
+        setCustomers([]);
+        setLoading(false); 
+      });
   }, []);
 
   return (
