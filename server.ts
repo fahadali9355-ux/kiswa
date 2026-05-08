@@ -84,8 +84,8 @@ export default app;
         }
       });
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ success: false, message: "Server error" });
+      console.error("CRITICAL Login error:", error);
+      res.status(500).json({ success: false, message: "Server error", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
