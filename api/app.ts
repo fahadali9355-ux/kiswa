@@ -81,7 +81,6 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
-// IMPORTANT: Move /featured BEFORE /:slug
 app.get("/api/products/featured", async (req, res) => {
   try {
     const products = await prisma.product.findMany({
@@ -171,39 +170,64 @@ app.get("/api/auth/customer/me", verifyToken, async (req, res) => {
 app.post("/api/orders", async (req, res) => {
   try {
     const { guestName, guestEmail, guestPhone, shippingAddress, paymentMethod, items, totalAmount, userId } = req.body;
+    
+    // VALIDATION: Ensure all items have a variantId if schema requires it
+    // If some products don't have variants, this logic might need adjustment
+    
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           guestName, 
           guestEmail, 
           guestPhone, 
-          shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress), // STRINGIFY OBJECT
+          shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
           paymentMethod, 
           totalAmount, 
           userId,
-          items: { create: items.map((item: any) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, price: item.price })) }
+          items: { 
+            create: items.map((item: any) => ({
+                productId: item.productId, 
+                variantId: item.variantId || null, 
+                quantity: item.quantity, 
+                price: item.price 
+            })) 
+          }
         },
         include: { items: { include: { product: true } } }
       });
+
       for (const item of items) {
-        if (item.variantId) await tx.variant.update({ where: { id: item.variantId }, data: { stockQty: { decrement: item.quantity } } });
+        if (item.variantId) {
+          await tx.variant.update({ 
+            where: { id: item.variantId }, 
+            data: { stockQty: { decrement: item.quantity } } 
+          });
+        }
       }
       return order;
     });
 
     try {
-      let formattedPhone = guestPhone.replace(/[\s-]/g, '');
+      let formattedPhone = (guestPhone || "").replace(/[\s-]/g, '');
       if (formattedPhone.startsWith('0')) formattedPhone = '+92' + formattedPhone.slice(1);
-      else if (!formattedPhone.startsWith('+')) formattedPhone = '+' + formattedPhone;
-      await sendOrderConfirmationToCustomer(result, formattedPhone);
-      await sendNewOrderAlertToAdmin(result);
-      await prisma.order.update({ where: { id: result.id }, data: { whatsappSent: true } });
-    } catch (e) {}
+      else if (formattedPhone && !formattedPhone.startsWith('+')) formattedPhone = '+' + formattedPhone;
+      
+      if (formattedPhone) {
+        await sendOrderConfirmationToCustomer(result, formattedPhone);
+        await sendNewOrderAlertToAdmin(result);
+        await prisma.order.update({ where: { id: result.id }, data: { whatsappSent: true } });
+      }
+    } catch (e) {
+      console.warn("WhatsApp Notification Failed:", e);
+    }
 
     res.status(201).json({ success: true, data: result });
   } catch (error) {
-    console.error("ORDER ERROR:", error);
-    res.status(500).json({ success: false, message: "Failed" });
+    console.error("CRITICAL ORDER ERROR:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error instanceof Error ? error.message : "Internal Server Error during order placement" 
+    });
   }
 });
 
