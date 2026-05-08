@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --platform=node --bundle --outfile=dist/server.cjs --format=cjs --external:express --external:@prisma/client --external:vite",
+    "build": "prisma generate && vite build",
     "start": "NODE_ENV=production node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -55,5 +55,8 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
