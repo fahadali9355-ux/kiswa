@@ -140,7 +140,7 @@ function DashboardView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authFetch('/api/admin/orders?limit=5')
+    fetch('/api/admin/orders?limit=5')
       .then((res) => res.json())
       .then((data) => {
         setRecentOrders(data);
@@ -421,7 +421,7 @@ function ProductsView({ showToast }: { showToast: any }) {
       fetch('/api/products').then(res => res.json()),
       fetch('/api/categories').then(res => res.json())
     ]).then(([prodData, catData]) => {
-      setProducts(prodData);
+      setProducts(prodData.products || []);
       setCategories(catData);
       setLoading(false);
     }).catch(() => { showToast('Error fetching data', 'error'); setLoading(false); });

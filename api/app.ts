@@ -49,20 +49,50 @@ app.get("/api/categories", async (req, res) => {
 
 app.get("/api/products", async (req, res) => {
   try {
-    const { category, featured } = req.query;
+    const { category, featured, page = "1", limit = "12" } = req.query;
     const filter: any = { isActive: true };
     if (featured === 'true') filter.isFeatured = true;
     if (category) filter.category = { slug: String(category) };
     
-    const products = await prisma.product.findMany({
-      where: filter,
-      include: { category: true, variants: true },
-      orderBy: { createdAt: "desc" }
-    });
+    const p = parseInt(page as string);
+    const l = parseInt(limit as string);
 
-    res.json(products.map(p => ({ ...p, images: p.images ? p.images.split(',') : [] })));
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: filter,
+        include: { category: true, variants: true },
+        orderBy: { createdAt: "desc" },
+        skip: (p - 1) * l,
+        take: l
+      }),
+      prisma.product.count({ where: filter })
+    ]);
+
+    res.json({
+      products: products.map(p => ({ ...p, images: p.images ? p.images.split(',') : [] })),
+      pagination: {
+        total,
+        page: p,
+        pages: Math.ceil(total / l)
+      }
+    });
   } catch (error) {
-    res.status(500).json([]);
+    res.status(500).json({ products: [], pagination: { total: 0, page: 1, pages: 1 } });
+  }
+});
+
+// IMPORTANT: Move /featured BEFORE /:slug
+app.get("/api/products/featured", async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { isFeatured: true, isActive: true },
+      include: { category: true, variants: true },
+      take: 8,
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(products.map(p => ({ ...p, images: p.images ? p.images.split(',') : [] })));
+  } catch (e) {
+    res.json([]);
   }
 });
 
@@ -144,7 +174,13 @@ app.post("/api/orders", async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
-          guestName, guestEmail, guestPhone, shippingAddress, paymentMethod, totalAmount, userId,
+          guestName, 
+          guestEmail, 
+          guestPhone, 
+          shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress), // STRINGIFY OBJECT
+          paymentMethod, 
+          totalAmount, 
+          userId,
           items: { create: items.map((item: any) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, price: item.price })) }
         },
         include: { items: { include: { product: true } } }
@@ -166,6 +202,7 @@ app.post("/api/orders", async (req, res) => {
 
     res.status(201).json({ success: true, data: result });
   } catch (error) {
+    console.error("ORDER ERROR:", error);
     res.status(500).json({ success: false, message: "Failed" });
   }
 });

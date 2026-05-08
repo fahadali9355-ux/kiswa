@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
 import { Search, Heart, ShoppingBag, Menu, ShieldCheck, Truck, Banknote, Instagram, MessageCircle, X } from 'lucide-react';
 
-import { BrowserRouter, Routes, Route, Link, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom';
 
 import { CartProvider, useCart } from './CartContext';
 import CartDrawer from './CartDrawer';
@@ -32,7 +32,6 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Listen for storage changes to update navbar when logging in/out on other tabs/pages
   useEffect(() => {
     const handleStorageChange = () => {
       const token = localStorage.getItem('kiswa_token');
@@ -44,7 +43,6 @@ const Navbar = () => {
       }
     };
     window.addEventListener('storage', handleStorageChange);
-    // Custom event for same-page updates
     window.addEventListener('kiswa_auth_change', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -188,6 +186,7 @@ const Navbar = () => {
 
 const Hero = () => {
   const shouldReduceMotion = useReducedMotion();
+  const navigate = useNavigate();
   const animationProps = shouldReduceMotion ? { initial: { opacity: 1 }, animate: { opacity: 1 } } : {
     initial: { y: 30, opacity: 0 },
     animate: { y: 0, opacity: 1 }
@@ -195,7 +194,15 @@ const Hero = () => {
 
   return (
     <section className="relative h-[100dvh] flex flex-col items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111111]/80 via-[#0A0A0A] to-[#0A0A0A] z-0 pointer-events-none"></div>
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop" 
+          alt="Luxury background" 
+          className="w-full h-full object-cover opacity-40"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A]/60 via-[#0A0A0A]/80 to-[#0A0A0A] z-0"></div>
+      </div>
       
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center">
         <motion.h1 
@@ -219,10 +226,16 @@ const Hero = () => {
           {...animationProps}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 }}
         >
-          <button className="bg-accent text-background font-medium py-3 px-8 hover:bg-accent/90 transition-colors">
+          <button 
+            onClick={() => navigate('/clothing')}
+            className="bg-accent text-background font-bold py-4 px-10 hover:bg-accent/90 transition-all transform hover:scale-105 uppercase tracking-widest text-xs"
+          >
             Shop Clothing
           </button>
-          <button className="border border-accent text-accent font-medium py-3 px-8 hover:bg-accent hover:text-background transition-colors">
+          <button 
+            onClick={() => navigate('/watches')}
+            className="border border-accent text-accent font-bold py-4 px-10 hover:bg-accent hover:text-background transition-all transform hover:scale-105 uppercase tracking-widest text-xs"
+          >
             Shop Watches
           </button>
         </motion.div>
@@ -231,39 +244,19 @@ const Hero = () => {
   );
 };
 
-const Marquee = () => {
-  const text = "FREE DELIVERY OVER RS. 5,000  •  NEW ARRIVALS EVERY WEEK  •  CASH ON DELIVERY AVAILABLE  •  PREMIUM QUALITY GUARANTEED  •  ";
-  return (
-    <div className="w-full bg-surface-1 overflow-hidden border-y border-surface-2 py-3">
-      <div className="flex w-max animate-marquee space-x-8">
-        <span className="text-accent text-xs font-semibold tracking-widest whitespace-nowrap">{text}</span>
-        <span className="text-accent text-xs font-semibold tracking-widest whitespace-nowrap">{text}</span>
-      </div>
-    </div>
-  );
-};
-
 const FeaturedCategories = () => {
   const shouldReduceMotion = useReducedMotion();
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch('/api/categories')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
         setCategories(data);
         setLoading(false);
       })
-      .catch(err => {
-        console.error(err);
-        setError(true);
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   }, []);
 
   const cardAnimation = shouldReduceMotion ? {} : {
@@ -273,39 +266,41 @@ const FeaturedCategories = () => {
     transition: { duration: 0.6, ease: "easeOut" }
   };
 
-  if (error) return null;
-
   return (
     <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <h2 className="font-serif text-3xl md:text-4xl text-center mb-16">Shop by Category</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {loading ? (
-          <>
-            <div className="h-[400px] sm:h-[500px] bg-surface-2 animate-pulse flex items-center justify-center">
-            </div>
-            <div className="h-[400px] sm:h-[500px] bg-surface-2 animate-pulse flex items-center justify-center">
-            </div>
-          </>
+          Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-[400px] sm:h-[500px] bg-surface-2 animate-pulse rounded-sm"></div>
+          ))
         ) : (
           categories.map((category, index) => (
-            <motion.div 
+            <Link 
               key={category.id}
-              className="group relative bg-[#111] h-[400px] sm:h-[500px] flex flex-col items-center justify-center overflow-hidden cursor-pointer border border-transparent transition-colors duration-500 hover:border-accent"
-              {...cardAnimation}
-              transition={{ duration: 0.6, ease: "easeOut", delay: shouldReduceMotion ? 0 : index * 0.2 }}
+              to={category.slug === 'luxury-watches' ? '/watches' : '/clothing'}
+              className="group relative bg-[#111] h-[400px] sm:h-[500px] flex flex-col items-center justify-center overflow-hidden cursor-pointer border border-transparent transition-colors duration-500 hover:border-accent rounded-sm"
             >
-              <div className="absolute inset-0 bg-surface-2/30 group-hover:scale-105 transition-transform duration-700 ease-out z-0">
-                 {/* Actual image goes here */}
-              </div>
-              <div className="relative z-10 text-center p-6 bg-background/50 backdrop-blur-sm w-full md:w-auto min-w-[300px] border border-surface-2 group-hover:border-accent/50 transition-colors">
-                 <h3 className="font-serif text-3xl mb-2">{category.name}</h3>
-                 <p className="text-foreground/70 mb-6">{category.description || 'Discover the collection'}</p>
-                 <span className="text-accent font-medium text-sm flex items-center justify-center gap-2 group-hover:gap-3 transition-all">
-                   Explore <span aria-hidden="true">&rarr;</span>
+              <motion.div 
+                className="absolute inset-0 z-0 w-full h-full"
+                {...cardAnimation}
+                transition={{ duration: 0.6, ease: "easeOut", delay: shouldReduceMotion ? 0 : index * 0.2 }}
+              >
+                {category.image ? (
+                   <img src={category.image} alt={category.name} className="w-full h-full object-cover opacity-50 group-hover:scale-110 transition-transform duration-1000" />
+                ) : (
+                   <div className="w-full h-full bg-surface-2/30" />
+                )}
+              </motion.div>
+              <div className="relative z-10 text-center p-8 bg-background/60 backdrop-blur-md w-full md:w-auto min-w-[320px] border border-surface-2 group-hover:border-accent/50 transition-all">
+                 <h3 className="font-serif text-3xl mb-3 text-accent">{category.name}</h3>
+                 <p className="text-foreground/70 mb-8 text-sm">{category.description || 'Discover the collection'}</p>
+                 <span className="text-accent font-bold text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                   Explore <span className="text-xl leading-none">→</span>
                  </span>
               </div>
-            </motion.div>
+            </Link>
           ))
         )}
       </div>
@@ -316,132 +311,161 @@ const FeaturedCategories = () => {
 const NewArrivals = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('/api/products/featured')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : (data.products || []));
         setLoading(false);
       })
-      .catch(err => {
-        console.error(err);
-        setError(true);
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   }, []);
-
-  if (error) return null;
 
   return (
     <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-surface-2">
-      <div className="flex justify-between items-end mb-12">
-        <h2 className="font-serif text-3xl md:text-4xl leading-none">New Arrivals</h2>
+      <div className="flex justify-between items-end mb-16">
+        <div>
+          <h2 className="font-serif text-3xl md:text-5xl leading-none mb-4">New Arrivals</h2>
+          <p className="text-foreground/40 text-sm tracking-widest uppercase">The latest from our atelier</p>
+        </div>
         {!loading && products.length > 0 && (
-          <a href="#" className="hidden sm:flex text-accent text-sm font-medium items-center gap-2 hover:gap-3 transition-all">
-            View All <span aria-hidden="true">&rarr;</span>
-          </a>
+          <Link to="/clothing" className="hidden sm:flex text-accent text-xs font-bold tracking-[0.3em] uppercase items-center gap-3 hover:gap-5 transition-all">
+            View All <span>→</span>
+          </Link>
         )}
       </div>
       
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="group">
-              <div className="relative aspect-square bg-surface-2 mb-4 animate-pulse"></div>
-              <div className="h-4 bg-surface-2 w-3/4 mb-2 animate-pulse"></div>
+            <div key={i} className="space-y-4">
+              <div className="aspect-[3/4] bg-surface-2 animate-pulse"></div>
+              <div className="h-4 bg-surface-2 w-3/4 animate-pulse"></div>
               <div className="h-4 bg-surface-2 w-1/4 animate-pulse"></div>
             </div>
           ))
         ) : (
           products.map((product) => (
-            <div key={product.id} className="group cursor-pointer">
-              <div className="relative aspect-square bg-surface-2 mb-4 overflow-hidden border border-transparent transition-all duration-300 group-hover:-translate-y-1 group-hover:border-accent/50 flex items-center justify-center">
-                <span className="text-surface-2/60 font-mono text-sm text-foreground/20">[ img ]</span>
-                <button className="absolute top-3 right-3 text-foreground/50 hover:text-accent transition-colors z-10">
-                  <Heart className="w-5 h-5" />
-                </button>
+            <div 
+              key={product.id} 
+              className="group cursor-pointer"
+              onClick={() => navigate(`/product/${product.slug}`)}
+            >
+              <div className="relative aspect-[3/4] bg-[#111] mb-6 overflow-hidden border border-transparent transition-all duration-500 group-hover:border-accent/40 flex items-center justify-center">
+                {product.images && product.images.length > 0 ? (
+                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                ) : (
+                  <span className="text-surface-2/60 font-serif text-sm">KISWA</span>
+                )}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               </div>
-              <h3 className="text-sm text-foreground mb-1 truncate">{product.name}</h3>
-              <p className="text-accent text-sm font-bold">
+              <h3 className="text-sm text-foreground/80 font-medium mb-2 group-hover:text-accent transition-colors">{product.name}</h3>
+              <p className="text-accent text-sm font-bold tracking-wider">
                 Rs. {product.basePrice.toLocaleString()}
               </p>
             </div>
           ))
         )}
       </div>
-      {!loading && products.length > 0 && (
-        <div className="mt-8 text-center sm:hidden">
-          <a href="#" className="inline-flex text-accent text-sm font-medium items-center gap-2 hover:gap-3 transition-all">
-            View All <span aria-hidden="true">&rarr;</span>
-          </a>
+    </section>
+  );
+};
+
+const AboutSection = () => {
+  return (
+    <section id="about" className="py-24 bg-[#0A0A0A] overflow-hidden border-t border-surface-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="relative"
+          >
+            <div className="aspect-[4/5] overflow-hidden rounded-sm border border-accent/20">
+              <img 
+                src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1974&auto=format&fit=crop" 
+                alt="Craftsmanship" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="absolute -bottom-8 -right-8 w-64 h-64 border border-accent/10 -z-10" />
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="space-y-8"
+          >
+            <h2 className="font-serif text-4xl md:text-5xl text-accent">Our Heritage</h2>
+            <p className="text-foreground/70 leading-relaxed text-lg font-light">
+              Founded in Pakistan, Kiswa represents the fusion of timeless elegance and contemporary craftsmanship. We believe that true luxury is found in the details—the choice of fabric, the precision of a stitch, and the durability of a movement.
+            </p>
+            <p className="text-foreground/70 leading-relaxed text-lg font-light">
+              Our mission is to provide premium everyday essentials that transcend seasonal trends. Each piece in our collection is a testament to our commitment to quality, designed for those who value longevity and style in equal measure.
+            </p>
+            <div className="pt-6">
+              <div className="flex items-center gap-6">
+                <div>
+                  <h4 className="text-2xl font-serif text-accent mb-1">2023</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-foreground/40">Established</p>
+                </div>
+                <div className="w-px h-12 bg-surface-2" />
+                <div>
+                  <h4 className="text-2xl font-serif text-accent mb-1">50+</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-foreground/40">Craftsmen</p>
+                </div>
+                <div className="w-px h-12 bg-surface-2" />
+                <div>
+                  <h4 className="text-2xl font-serif text-accent mb-1">10k+</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-foreground/40">Customers</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      )}
+      </div>
     </section>
   );
 };
 
 const Features = () => {
-  const shouldReduceMotion = useReducedMotion();
-  
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5 } }
-  };
-
   return (
     <section className="py-24 bg-[#0D0D0D] border-y border-surface-2">
-      <motion.div 
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-12 text-center"
-        variants={shouldReduceMotion ? {} : container}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, margin: "-50px" }}
-      >
-        <motion.div variants={shouldReduceMotion ? {} : item} className="flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full border border-accent/20 flex items-center justify-center mb-6 text-accent">
-            <ShieldCheck strokeWidth={1.5} className="w-6 h-6" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+        <div className="flex flex-col items-center group">
+          <div className="w-16 h-16 rounded-full border border-accent/20 flex items-center justify-center mb-8 text-accent group-hover:bg-accent/5 transition-all">
+            <ShieldCheck strokeWidth={1} className="w-8 h-8" />
           </div>
-          <h3 className="font-serif text-xl mb-3">Premium Quality</h3>
-          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed">
+          <h3 className="font-serif text-2xl mb-4">Premium Quality</h3>
+          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed font-light">
             Uncompromising materials sourced globally, crafted for longevity and elegance.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div variants={shouldReduceMotion ? {} : item} className="flex flex-col items-center border-y md:border-x md:border-y-0 border-surface-2 py-12 md:py-0">
-          <div className="w-12 h-12 rounded-full border border-accent/20 flex items-center justify-center mb-6 text-accent">
-            <Truck strokeWidth={1.5} className="w-6 h-6" />
+        <div className="flex flex-col items-center border-y md:border-x md:border-y-0 border-surface-2 py-16 md:py-0 group">
+          <div className="w-16 h-16 rounded-full border border-accent/20 flex items-center justify-center mb-8 text-accent group-hover:bg-accent/5 transition-all">
+            <Truck strokeWidth={1} className="w-8 h-8" />
           </div>
-          <h3 className="font-serif text-xl mb-3">Fast Delivery</h3>
-          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed">
+          <h3 className="font-serif text-2xl mb-4">Fast Delivery</h3>
+          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed font-light">
             Expedited shipping nationwide, ensuring your luxury items arrive promptly and securely.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div variants={shouldReduceMotion ? {} : item} className="flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full border border-accent/20 flex items-center justify-center mb-6 text-accent">
-            <Banknote strokeWidth={1.5} className="w-6 h-6" />
+        <div className="flex flex-col items-center group">
+          <div className="w-16 h-16 rounded-full border border-accent/20 flex items-center justify-center mb-8 text-accent group-hover:bg-accent/5 transition-all">
+            <Banknote strokeWidth={1} className="w-8 h-8" />
           </div>
-          <h3 className="font-serif text-xl mb-3">Cash on Delivery</h3>
-          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed">
+          <h3 className="font-serif text-2xl mb-4">Cash on Delivery</h3>
+          <p className="text-foreground/60 text-sm max-w-xs leading-relaxed font-light">
             Secure and convenient payment upon receipt of your items at your doorstep.
           </p>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   );
 };
@@ -451,48 +475,49 @@ const Footer = () => {
     <footer className="pt-20 border-t border-accent/30 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
         <div>
-          <h4 className="font-serif text-2xl text-accent mb-4 tracking-wider">Kiswa</h4>
-          <p className="text-foreground/60 text-sm leading-relaxed mb-6">
-            Architectural refinement. A new standard for everyday elegance and horology.
+          <h4 className="font-serif text-3xl text-accent mb-6 tracking-wider">Kiswa</h4>
+          <p className="text-foreground/60 text-sm leading-relaxed mb-8 font-light">
+            Architectural refinement. A new standard for everyday elegance and luxury horology.
           </p>
+          <div className="flex space-x-6">
+            <a href="#" className="text-foreground/40 hover:text-accent transition-colors"><Instagram className="w-5 h-5" /></a>
+            <a href="#" className="text-foreground/40 hover:text-accent transition-colors"><MessageCircle className="w-5 h-5" /></a>
+          </div>
         </div>
         
         <div>
-          <h4 className="font-medium mb-6 uppercase text-xs tracking-widest text-foreground/80">Quick Links</h4>
+          <h4 className="font-bold mb-8 uppercase text-[10px] tracking-[0.3em] text-foreground/80">Collections</h4>
           <ul className="space-y-4">
-            <li><a href="#" className="text-foreground/60 hover:text-accent transition-colors text-sm">Collections</a></li>
-            <li><a href="#" className="text-foreground/60 hover:text-accent transition-colors text-sm">Heritage</a></li>
-            <li><a href="#" className="text-foreground/60 hover:text-accent transition-colors text-sm">Bespoke</a></li>
-            <li><a href="#" className="text-foreground/60 hover:text-accent transition-colors text-sm">FAQs</a></li>
+            <li><Link to="/clothing" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Everyday Wear</Link></li>
+            <li><Link to="/watches" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Luxury Watches</Link></li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">New Arrivals</a></li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Heritage</a></li>
           </ul>
         </div>
 
         <div>
-          <h4 className="font-medium mb-6 uppercase text-xs tracking-widest text-foreground/80">Contact</h4>
+          <h4 className="font-bold mb-8 uppercase text-[10px] tracking-[0.3em] text-foreground/80">Support</h4>
           <ul className="space-y-4">
-            <li className="text-foreground/60 text-sm">hello@kiswa.pk</li>
-            <li className="text-foreground/60 text-sm">+92 300 1234567</li>
-            <li className="text-foreground/60 text-sm mt-4">
-              Block 4, Clifton<br/>Karachi, Pakistan
-            </li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Track Order</a></li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Shipping Policy</a></li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">Return Policy</a></li>
+            <li><a href="#" className="text-foreground/50 hover:text-accent transition-colors text-xs uppercase tracking-widest">FAQs</a></li>
           </ul>
         </div>
 
         <div>
-          <h4 className="font-medium mb-6 uppercase text-xs tracking-widest text-foreground/80">Follow Us</h4>
-          <div className="flex space-x-4">
-            <a href="#" className="w-10 h-10 rounded-full border border-surface-2 flex items-center justify-center text-foreground/60 hover:text-background hover:bg-accent hover:border-accent transition-all">
-              <Instagram className="w-4 h-4" />
-            </a>
-            <a href="#" className="w-10 h-10 rounded-full border border-surface-2 flex items-center justify-center text-foreground/60 hover:text-background hover:bg-accent hover:border-accent transition-all">
-              <MessageCircle className="w-4 h-4" />
-            </a>
-          </div>
+          <h4 className="font-bold mb-8 uppercase text-[10px] tracking-[0.3em] text-foreground/80">Karachi Studio</h4>
+          <p className="text-foreground/50 text-xs uppercase tracking-[0.2em] leading-loose">
+            Block 4, Clifton<br/>
+            Karachi, Pakistan<br/>
+            <span className="mt-4 block">hello@kiswa.pk</span>
+            <span>+92 300 1234567</span>
+          </p>
         </div>
       </div>
       
-      <div className="border-t border-surface-2 py-8 text-center text-xs tracking-widest text-foreground/40 uppercase">
-        © 2025 Kiswa. All rights reserved.
+      <div className="border-t border-surface-2 py-10 text-center text-[10px] tracking-[0.4em] text-foreground/30 uppercase">
+        © 2025 Kiswa Studio. Built for Excellence.
       </div>
     </footer>
   );
@@ -502,9 +527,9 @@ function Storefront() {
   return (
     <>
       <Hero />
-      <Marquee />
       <FeaturedCategories />
       <NewArrivals />
+      <AboutSection />
       <Features />
     </>
   );
