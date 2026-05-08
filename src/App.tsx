@@ -128,9 +128,6 @@ const Navbar = () => {
               <Link to="/account" className="hidden sm:block text-foreground hover:text-accent transition-colors" title="Wishlist">
                 <Heart className="w-5 h-5" />
               </Link>
-              <Link to="/admin" className="hidden lg:block text-sm font-bold tracking-widest text-[#F5F0E8] hover:text-accent transition-colors">
-                ADMIN
-              </Link>
               <button onClick={openDrawer} className="text-foreground hover:text-accent transition-colors relative ml-2">
                 <ShoppingBag className="w-5 h-5" />
                 {cartCount > 0 && (
@@ -174,8 +171,6 @@ const Navbar = () => {
               ) : (
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="text-xl text-accent font-bold tracking-widest uppercase">Login / Register</Link>
               )}
-              
-              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="text-xl hover:text-accent transition-colors mt-4">Admin Dashboard</Link>
             </div>
           </motion.div>
         )}
