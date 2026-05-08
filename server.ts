@@ -920,7 +920,6 @@ const PORT = Number(process.env.PORT) || 3000;
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-}
 
 export { app };
 export default app;
