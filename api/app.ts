@@ -169,10 +169,12 @@ app.get("/api/auth/customer/me", verifyToken, async (req, res) => {
 // --- ORDERS ---
 app.post("/api/orders", async (req, res) => {
   try {
-    const { guestName, guestEmail, guestPhone, shippingAddress, paymentMethod, items, totalAmount, userId } = req.body;
-    
-    // VALIDATION: Ensure all items have a variantId if schema requires it
-    // If some products don't have variants, this logic might need adjustment
+    // Auto-link to user if guestEmail matches an existing account
+    let effectiveUserId = userId;
+    if (!effectiveUserId && guestEmail) {
+      const existingUser = await prisma.user.findUnique({ where: { email: guestEmail } });
+      if (existingUser) effectiveUserId = existingUser.id;
+    }
     
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -183,7 +185,7 @@ app.post("/api/orders", async (req, res) => {
           shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
           paymentMethod, 
           totalAmount, 
-          userId,
+          userId: effectiveUserId,
           items: { 
             create: items.map((item: any) => ({
                 productId: item.productId, 
@@ -365,12 +367,24 @@ app.get("/api/admin/orders", async (req, res) => {
 
 app.get("/api/admin/customers", async (req, res) => {
   try {
-    const customers = await prisma.user.findMany({
+    const users = await prisma.user.findMany({
       where: { role: "CUSTOMER" },
-      include: { _count: { select: { orders: true } } },
       orderBy: { createdAt: "desc" }
     });
-    res.json(customers);
+
+    const customersWithOrders = await Promise.all(users.map(async (user) => {
+      const orderCount = await prisma.order.count({
+        where: {
+          OR: [
+            { userId: user.id },
+            { guestEmail: user.email }
+          ]
+        }
+      });
+      return { ...user, _count: { orders: orderCount } };
+    }));
+
+    res.json(customersWithOrders);
   } catch (error) {
     res.json([]);
   }
