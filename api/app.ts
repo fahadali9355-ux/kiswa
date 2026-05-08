@@ -7,10 +7,10 @@ import rateLimit from "express-rate-limit";
 import compression from "compression";
 import morgan from "morgan";
 import cors from "cors";
-import { verifyToken, isAdmin } from "./authMiddleware";
-import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "../src/services/whatsappService";
-import { uploadSingleImage, uploadMultipleImages } from "../src/uploadMiddleware";
-import prisma from "./prisma";
+import { verifyToken, isAdmin } from "./authMiddleware.js";
+import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "../src/services/whatsappService.js";
+import { uploadSingleImage, uploadMultipleImages } from "../src/uploadMiddleware.js";
+import prisma from "./prisma.js";
 
 const app = express();
 
