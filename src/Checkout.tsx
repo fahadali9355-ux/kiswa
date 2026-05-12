@@ -11,6 +11,7 @@ export default function Checkout() {
   const [step, setStep] = useState(2); // 1 = Cart, 2 = Checkout, 3 = Confirmation
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
   // Form State
   const [contact, setContact] = useState({ name: '', email: '', phone: '' });
@@ -29,7 +30,7 @@ export default function Checkout() {
   const finalTotal = cartTotal + shippingCost;
 
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && !orderPlaced) {
       navigate('/clothing');
     }
     
@@ -112,6 +113,7 @@ export default function Checkout() {
       const data = await res.json();
       
       if (data.success) {
+        setOrderPlaced(true);
         clearCart();
         navigate(`/order-confirmation/${data.data.id}`, { state: { order: data.data } });
       } else {
