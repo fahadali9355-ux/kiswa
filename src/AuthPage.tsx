@@ -3,6 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
@@ -102,8 +108,70 @@ export default function AuthPage() {
     setTimeout(() => setToast(''), 3000);
   };
 
+  useEffect(() => {
+    // Initialize Google Identity Services
+    const initGoogle = () => {
+      if (window.google && window.google.accounts) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "86337851214-72o713r3f7p4uph5fjk7001cl7p8d70r.apps.googleusercontent.com", // Fallback or provided by user
+          callback: handleGoogleResponse
+        });
+      }
+    };
+
+    // Retry initialization in case script loads after component mounts
+    const timer = setInterval(() => {
+      if (window.google) {
+        initGoogle();
+        clearInterval(timer);
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleGoogleResponse = async (response: any) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem('kiswa_token', data.data.token);
+        localStorage.setItem('kiswa_user', JSON.stringify(data.data.user));
+        window.dispatchEvent(new Event('kiswa_auth_change'));
+        showToast('Logged in successfully with Google');
+        
+        setTimeout(() => {
+          const from = (location.state as any)?.from || '/account';
+          navigate(from);
+        }, 1500);
+      } else {
+        setError(data.message || 'Google login failed');
+      }
+    } catch (err) {
+      setError('A network error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleAuth = () => {
-    showToast('Google login coming soon!');
+    if (window.google) {
+      window.google.accounts.id.prompt();
+      // Also render the standard button invisibly to trigger it if prompt is blocked
+      const parent = document.getElementById('google-button-hidden');
+      if (parent) {
+        window.google.accounts.id.renderButton(parent, { theme: 'outline', size: 'large' });
+      }
+    } else {
+      showToast('Google login is still loading...');
+    }
   };
 
   return (
@@ -324,6 +392,7 @@ export default function AuthPage() {
           </div>
 
           {/* SOCIAL LOGIN */}
+          <div id="google-button-hidden" className="hidden"></div>
           <button 
             type="button"
             onClick={handleGoogleAuth}

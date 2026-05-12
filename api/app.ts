@@ -10,6 +10,7 @@ import cors from "cors";
 import { verifyToken, isAdmin } from "./authMiddleware.js";
 import { sendOrderConfirmationToCustomer, sendNewOrderAlertToAdmin, sendOrderStatusUpdate } from "../src/services/whatsappService.js";
 import { uploadSingleImage, uploadMultipleImages } from "../src/uploadMiddleware.js";
+import { OAuth2Client } from "google-auth-library";
 import prisma from "./prisma.js";
 
 const app = express();
@@ -156,6 +157,49 @@ app.post("/api/auth/customer/register", authLimiter, async (req, res) => {
   }
 });
 
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { credential } = req.body;
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload) return res.status(400).json({ success: false, message: "Invalid Google token" });
+
+    const { email, name } = payload;
+    let user = await prisma.user.findUnique({ where: { email: email! } });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: email!,
+          name: name || "Google User",
+          role: "CUSTOMER",
+        }
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email },
+      process.env.JWT_SECRET || "super-secret-jwt-key-kiswa",
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      }
+    });
+  } catch (error) {
+    console.error("Google Auth Error:", error);
+    res.status(500).json({ success: false, message: "Google authentication failed" });
+  }
+});
+
 app.get("/api/auth/customer/me", verifyToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
@@ -169,6 +213,17 @@ app.get("/api/auth/customer/me", verifyToken, async (req, res) => {
 // --- ORDERS ---
 app.post("/api/orders", async (req, res) => {
   try {
+    const { 
+      userId, 
+      guestName, 
+      guestEmail, 
+      guestPhone, 
+      shippingAddress, 
+      paymentMethod, 
+      totalAmount, 
+      items 
+    } = req.body;
+
     // Auto-link to user if guestEmail matches an existing account
     let effectiveUserId = userId;
     if (!effectiveUserId && guestEmail) {
@@ -264,7 +319,7 @@ app.post("/api/wishlist/sync", verifyToken, async (req, res) => {
     const { productIds } = req.body;
     for (const pid of productIds) {
       await prisma.wishlistItem.upsert({
-        where: { userId_productId: { userId: req.user.userId, productId: pid } },
+        where: { user_product: { userId: req.user.userId, productId: pid } },
         update: {},
         create: { userId: req.user.userId, productId: pid }
       });
@@ -278,7 +333,7 @@ app.post("/api/wishlist/sync", verifyToken, async (req, res) => {
 app.delete("/api/wishlist/:id", verifyToken, async (req, res) => {
   try {
     await prisma.wishlistItem.delete({
-      where: { userId_productId: { userId: req.user.userId, productId: req.params.id } }
+      where: { user_product: { userId: req.user.userId, productId: req.params.id } }
     });
     res.json({ success: true });
   } catch (error) {

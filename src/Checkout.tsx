@@ -32,6 +32,20 @@ export default function Checkout() {
     if (cart.length === 0) {
       navigate('/clothing');
     }
+    
+    // Auto-fill from logged in user
+    const savedUser = localStorage.getItem('kiswa_user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setContact({
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || ''
+        });
+      } catch (e) {}
+    }
+    
     window.scrollTo(0, 0);
   }, [cart, navigate]);
 
@@ -70,7 +84,11 @@ export default function Checkout() {
     setError('');
 
     try {
+      const savedUser = localStorage.getItem('kiswa_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+
       const orderPayload = {
+        userId: user?.id,
         guestName: contact.name,
         guestEmail: contact.email || undefined,
         guestPhone: contact.phone,
