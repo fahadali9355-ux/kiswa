@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, Receipt, Package, Tag, Users, Edit2, Trash2, Plus, X, Upload, CheckCircle2, AlertCircle, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Receipt, Package, Tag, Users, Edit2, Trash2, Plus, X, Upload, CheckCircle2, AlertCircle, MessageCircle, Menu } from 'lucide-react';
 import { Link, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 import AdminLogin from './AdminLogin';
@@ -41,6 +41,7 @@ export default function AdminDashboard() {
 function AdminDashboardLayout() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAdminAuth();
 
@@ -56,13 +57,41 @@ function AdminDashboardLayout() {
 
   return (
     <div className="flex h-screen bg-[#0A0A0A] text-foreground font-sans overflow-hidden">
+      
+      {/* MOBILE OVERLAY */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#0D0D0D] border-r border-surface-2 flex flex-col">
-        <div className="p-6 border-b border-surface-2 pb-8">
-          <Link to="/">
-            <h1 className="font-serif text-3xl font-bold text-accent tracking-wider mb-1">Kiswa</h1>
-          </Link>
-          <p className="text-xs text-foreground/50 tracking-widest uppercase">Admin Panel</p>
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-40
+        w-64 bg-[#0D0D0D] border-r border-surface-2 flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
+        <div className="p-6 border-b border-surface-2 pb-8 flex items-center justify-between">
+          <div>
+            <Link to="/" onClick={() => setSidebarOpen(false)}>
+              <h1 className="font-serif text-3xl font-bold text-accent tracking-wider mb-1">Kiswa</h1>
+            </Link>
+            <p className="text-xs text-foreground/50 tracking-widest uppercase">Admin Panel</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-foreground/50 hover:text-foreground p-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-1">
@@ -77,7 +106,7 @@ function AdminDashboardLayout() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-surface-1 text-accent border-l-4 border-accent'
@@ -100,12 +129,23 @@ function AdminDashboardLayout() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto">
+        {/* MOBILE TOP BAR */}
+        <div className="lg:hidden flex items-center gap-4 px-4 py-3 bg-[#0D0D0D] border-b border-surface-2 sticky top-0 z-20">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-foreground/70 hover:text-accent transition-colors p-1"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <h2 className="font-serif text-xl text-accent">Kiswa Admin</h2>
+        </div>
+
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto">
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'categories' && <CategoriesView showToast={showToast} />}
           {activeTab === 'products' && <ProductsView showToast={showToast} />}
-           {activeTab === 'orders' && <OrdersView showToast={showToast} />}
-           {activeTab === 'customers' && <CustomersView showToast={showToast} />}
+          {activeTab === 'orders' && <OrdersView showToast={showToast} />}
+          {activeTab === 'customers' && <CustomersView showToast={showToast} />}
         </div>
       </main>
 
