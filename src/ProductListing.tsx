@@ -17,6 +17,7 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [toast, setToast] = useState('');
   const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState<any | null>(null);
+  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   
   const isLoggedIn = !!localStorage.getItem('kiswa_token');
   
@@ -49,7 +50,18 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        setProducts(data.products || []);
+        const prods = data.products || [];
+        setProducts(prods);
+        // Extract unique sizes from product variants for THIS category
+        const sizes: string[] = [];
+        prods.forEach((p: any) => {
+          if (p.variants) {
+            p.variants.forEach((v: any) => {
+              if (v.size && !sizes.includes(v.size)) sizes.push(v.size);
+            });
+          }
+        });
+        setAvailableSizes(sizes);
         if (data.pagination) setPagination(data.pagination);
         setLoading(false);
       })
@@ -176,25 +188,38 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
 
             {/* Desktop Filters (Left) */}
             <div className="hidden lg:flex items-center gap-6">
-              {/* Category Links (simulated as filters here for easy navigation) */}
+              {/* Category Links */}
               <div className="flex gap-2">
-                <Link to="/clothing" className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categorySlug === 'everyday-wear' ? 'bg-accent text-background' : 'bg-surface-2 hover:bg-surface-2/80'}`}>Clothing</Link>
-                <Link to="/watches" className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categorySlug === 'luxury-watches' ? 'bg-accent text-background' : 'bg-surface-2 hover:bg-surface-2/80'}`}>Watches</Link>
-              </div>
-              <div className="w-px h-6 bg-surface-2"></div>
-              {/* Size Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-wider text-foreground/50 mr-2">Size:</span>
-                {['S', 'M', 'L', 'XL'].map(size => (
-                  <button 
-                    key={size}
-                    onClick={() => updateFilters('size', currentSize === size ? '' : size)}
-                    className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${currentSize === size ? 'bg-accent text-background' : 'bg-surface-2 text-foreground/80 hover:border-accent border border-transparent'}`}
+                {categories.map(cat => (
+                  <Link 
+                    key={cat.id}
+                    to={`/${cat.slug}`} 
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      categorySlug === cat.slug ? 'bg-accent text-background' : 'bg-surface-2 hover:bg-surface-2/80'
+                    }`}
                   >
-                    {size}
-                  </button>
+                    {cat.name}
+                  </Link>
                 ))}
               </div>
+              {/* Size Filter — only show if this category has size variants */}
+              {availableSizes.length > 0 && (
+                <>
+                  <div className="w-px h-6 bg-surface-2"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase tracking-wider text-foreground/50 mr-2">Size:</span>
+                    {availableSizes.map(size => (
+                      <button 
+                        key={size}
+                        onClick={() => updateFilters('size', currentSize === size ? '' : size)}
+                        className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${currentSize === size ? 'bg-accent text-background' : 'bg-surface-2 text-foreground/80 hover:border-accent border border-transparent'}`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Right side controls */}
@@ -395,21 +420,23 @@ export default function ProductListing({ categorySlug }: ProductListingProps) {
               </div>
 
               <div className="space-y-6">
-                {/* Size */}
-                <div>
-                  <h4 className="text-xs tracking-widest uppercase text-foreground/50 mb-3 font-medium">Size</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {['S', 'M', 'L', 'XL'].map(size => (
-                      <button 
-                        key={size}
-                        onClick={() => updateFilters('size', currentSize === size ? '' : size)}
-                        className={`px-4 py-2 rounded border text-sm transition-colors ${currentSize === size ? 'bg-accent border-accent text-background font-medium' : 'border-surface-2 text-foreground/80'}`}
-                      >
-                        {size}
-                      </button>
-                    ))}
+                {/* Size — only show if available sizes exist */}
+                {availableSizes.length > 0 && (
+                  <div>
+                    <h4 className="text-xs tracking-widest uppercase text-foreground/50 mb-3 font-medium">Size</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {availableSizes.map(size => (
+                        <button 
+                          key={size}
+                          onClick={() => updateFilters('size', currentSize === size ? '' : size)}
+                          className={`px-4 py-2 rounded border text-sm transition-colors ${currentSize === size ? 'bg-accent border-accent text-background font-medium' : 'border-surface-2 text-foreground/80'}`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="pt-4 border-t border-surface-2">
                    <button 

@@ -179,12 +179,35 @@ function DashboardView() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [clearingData, setClearingData] = useState(false);
   const [stats, setStats] = useState({
     totalOrders: 0,
     todayOrders: 0,
     totalRevenue: 0,
     pendingOrders: 0
   });
+
+  const handleClearAllData = async () => {
+    const first = window.confirm('⚠️ Kya aap SARE products, categories aur orders delete karna chahte hain?\n\nYe action UNDO nahi ho sakta!');
+    if (!first) return;
+    const second = window.confirm('🔴 Doosri baar confirm karo: Sab kuch permanently delete ho jayega. Aage barho?');
+    if (!second) return;
+    
+    setClearingData(true);
+    try {
+      const res = await authFetch('/api/admin/clear-all-data', { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ Sab data successfully delete ho gaya!');
+        window.location.reload();
+      } else {
+        alert('❌ Error: Data delete nahi hua. Server error.');
+      }
+    } catch (e) {
+      alert('❌ Network error. Dobara try karo.');
+    } finally {
+      setClearingData(false);
+    }
+  };
 
   useEffect(() => {
     authFetch('/api/admin/orders?limit=5')
@@ -211,8 +234,18 @@ function DashboardView() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h2 className="font-serif text-3xl">Overview</h2>
-      
+      <div className="flex justify-between items-center">
+        <h2 className="font-serif text-3xl">Overview</h2>
+        <button
+          onClick={handleClearAllData}
+          disabled={clearingData}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-wider uppercase border border-red-500/40 text-red-400/80 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500 transition-all rounded-sm disabled:opacity-50"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {clearingData ? 'Deleting...' : 'Sab Data Clear Karo'}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           { label: 'Total Orders', value: stats.totalOrders.toLocaleString() },
@@ -668,25 +701,90 @@ function ProductsView({ showToast }: { showToast: any }) {
 
             <div className="p-4 border border-surface-2 bg-surface-2/30 rounded-sm">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-medium tracking-wider uppercase text-foreground/80">Variants</h4>
-                <button type="button" onClick={addVariant} className="text-xs text-accent hover:underline flex items-center gap-1">
+                <div>
+                  <h4 className="text-sm font-medium tracking-wider uppercase text-foreground/80">Variants</h4>
+                  <p className="text-[10px] text-foreground/40 mt-1">Agar product ke multiple sizes ya colors hain to yahan add karo. Warna empty chhod do.</p>
+                </div>
+                <button type="button" onClick={addVariant} className="text-xs text-accent hover:underline flex items-center gap-1 bg-accent/10 px-3 py-1.5 rounded border border-accent/20 hover:bg-accent/20 transition-colors">
                   <Plus className="w-3 h-3" /> Add Variant
                 </button>
               </div>
-              {variants.length === 0 && <p className="text-xs text-foreground/50">No variants. Product uses base price and has infinite stock.</p>}
-              <div className="space-y-2">
-                {variants.map((v, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <input type="text" placeholder="Size (e.g. M)" value={v.size || ''} onChange={e => updateVariant(i, 'size', e.target.value)} className="w-full bg-surface-2 border border-surface-2 px-2 py-1 text-xs" />
-                    <input type="text" placeholder="Color" value={v.color || ''} onChange={e => updateVariant(i, 'color', e.target.value)} className="w-full bg-surface-2 border border-surface-2 px-2 py-1 text-xs" />
-                    <input type="number" placeholder="Stock" value={v.stockQty} onChange={e => updateVariant(i, 'stockQty', e.target.value)} className="w-full bg-surface-2 border border-surface-2 px-2 py-1 text-xs" />
-                    <input type="number" placeholder="+/- Price" value={v.priceAdjustment} onChange={e => updateVariant(i, 'priceAdjustment', e.target.value)} className="w-full bg-surface-2 border border-surface-2 px-2 py-1 text-xs" />
-                    <button type="button" onClick={() => removeVariant(i)} className="p-1 text-red-500/80 hover:text-red-500">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {variants.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-surface-2 rounded-sm">
+                  <p className="text-xs text-foreground/50">Koi variant nahi hai.</p>
+                  <p className="text-[10px] text-foreground/30 mt-1">Product sirf base price use karega aur stock unlimited hogi.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b border-surface-2">
+                        <th className="pb-2 pr-3 text-foreground/50 font-medium uppercase tracking-wider">Size / Type
+                          <div className="font-normal text-foreground/30 normal-case tracking-normal mt-0.5">e.g. S, M, L, XL, Standard</div>
+                        </th>
+                        <th className="pb-2 pr-3 text-foreground/50 font-medium uppercase tracking-wider">Color
+                          <div className="font-normal text-foreground/30 normal-case tracking-normal mt-0.5">e.g. Black, Red (optional)</div>
+                        </th>
+                        <th className="pb-2 pr-3 text-foreground/50 font-medium uppercase tracking-wider">Stock Qty
+                          <div className="font-normal text-foreground/30 normal-case tracking-normal mt-0.5">Kitne units available hain</div>
+                        </th>
+                        <th className="pb-2 pr-3 text-foreground/50 font-medium uppercase tracking-wider">+/- Price (PKR)
+                          <div className="font-normal text-foreground/30 normal-case tracking-normal mt-0.5">Base price se zyada ya kam (0 = same)</div>
+                        </th>
+                        <th className="pb-2 text-foreground/50 font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-2/50">
+                      {variants.map((v, i) => (
+                        <tr key={i} className="group">
+                          <td className="py-2 pr-3">
+                            <input 
+                              type="text" 
+                              placeholder="e.g. M ya Standard" 
+                              value={v.size || ''} 
+                              onChange={e => updateVariant(i, 'size', e.target.value)} 
+                              className="w-full bg-surface-2 border border-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-accent rounded-sm" 
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <input 
+                              type="text" 
+                              placeholder="Black (optional)" 
+                              value={v.color || ''} 
+                              onChange={e => updateVariant(i, 'color', e.target.value)} 
+                              className="w-full bg-surface-2 border border-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-accent rounded-sm" 
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <input 
+                              type="number" 
+                              min="0"
+                              placeholder="0" 
+                              value={v.stockQty} 
+                              onChange={e => updateVariant(i, 'stockQty', e.target.value)} 
+                              className="w-full bg-surface-2 border border-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-accent rounded-sm" 
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <input 
+                              type="number" 
+                              placeholder="0" 
+                              value={v.priceAdjustment} 
+                              onChange={e => updateVariant(i, 'priceAdjustment', e.target.value)} 
+                              className="w-full bg-surface-2 border border-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-accent rounded-sm" 
+                            />
+                          </td>
+                          <td className="py-2">
+                            <button type="button" onClick={() => removeVariant(i)} className="p-1 text-red-500/80 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-6">

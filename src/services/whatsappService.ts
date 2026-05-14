@@ -110,7 +110,7 @@ export const sendOrderStatusUpdate = async (order: any, customerPhone: string, s
       const productSlug = order.items && order.items.length > 0 && order.items[0].product ? order.items[0].product.slug : '';
       messageBody = `✅ *Kiswa — Order Delivered!*\n\nYour order KSW-${shortId} has been delivered!\n\nWe hope you love your purchase. 🖤\n${productSlug ? `Please leave a review: ${appUrl}/product/${productSlug}\n\n` : ''}Thank you for choosing Kiswa!`;
     } else if (status === 'CANCELLED') {
-      messageBody = `❌ *Kiswa — Order Cancelled*\n\nYour order KSW-${shortId} has been cancelled.\n\nIf you have questions, contact us:\nWhatsApp: +92 300 1234567\nEmail: hello@kiswa.pk\n\nWe hope to serve you again. 🖤`;
+      messageBody = `❌ *Kiswa — Order Cancelled*\n\nYour order KSW-${shortId} has been cancelled.\n\nIf you have questions, contact us:\nWhatsApp: +92 329 7939629\nEmail: hurairahrajpoot219@gmail.com\n\nWe hope to serve you again. 🖤`;
     }
 
     if (messageBody) {

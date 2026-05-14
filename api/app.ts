@@ -542,6 +542,23 @@ app.delete("/api/admin/products/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+// Clear all data (products, categories, orders)
+app.delete("/api/admin/clear-all-data", async (req, res) => {
+  try {
+    await prisma.orderItem.deleteMany({});
+    await prisma.order.deleteMany({});
+    await prisma.variant.deleteMany({});
+    await prisma.wishlistItem.deleteMany({});
+    await prisma.review.deleteMany({});
+    await prisma.product.deleteMany({});
+    await prisma.category.deleteMany({});
+    res.json({ success: true, message: "All data cleared successfully" });
+  } catch (error) {
+    console.error("Error clearing data:", error);
+    res.status(500).json({ success: false, error: "Failed to clear data" });
+  }
+});
+
 app.put("/api/admin/orders/:id/status", async (req, res) => {
   try {
     const { status } = req.body;

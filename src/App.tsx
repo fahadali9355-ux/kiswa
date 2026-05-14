@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
 import { Search, Heart, ShoppingBag, Menu, ShieldCheck, Truck, Banknote, Instagram, MessageCircle, X } from 'lucide-react';
 
-import { BrowserRouter, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Outlet, useNavigate, useParams } from 'react-router-dom';
 
 import { CartProvider, useCart } from './CartContext';
 import CartDrawer from './CartDrawer';
@@ -17,6 +17,14 @@ const Navbar = () => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const { cartCount, openDrawer } = useCart();
   const [user, setUser] = useState<any>(null);
+  const [navCategories, setNavCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => setNavCategories(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -86,8 +94,15 @@ const Navbar = () => {
             {/* Desktop Links */}
             <div className="hidden md:flex flex-1 justify-center space-x-10">
               <Link to="/" className="text-sm font-medium hover:text-accent transition-colors">Home</Link>
-              <Link to="/clothing" className="text-sm font-medium hover:text-accent transition-colors">Clothing</Link>
-              <Link to="/watches" className="text-sm font-medium hover:text-accent transition-colors">Watches</Link>
+              {navCategories.map(cat => (
+                <Link 
+                  key={cat.id}
+                  to={`/${cat.slug}`} 
+                  className="text-sm font-medium hover:text-accent transition-colors capitalize"
+                >
+                  {cat.name}
+                </Link>
+              ))}
               <a href="#about" className="text-sm font-medium hover:text-accent transition-colors">About</a>
             </div>
 
@@ -157,8 +172,16 @@ const Navbar = () => {
             </button>
             <div className="flex flex-col space-y-6 text-2xl font-serif text-center mt-12 pb-8 overflow-y-auto custom-scrollbar">
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent transition-colors">Home</Link>
-              <Link to="/clothing" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent transition-colors">Clothing</Link>
-              <Link to="/watches" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent transition-colors">Watches</Link>
+              {navCategories.map(cat => (
+                <Link 
+                  key={cat.id}
+                  to={`/${cat.slug}`} 
+                  onClick={() => setMobileMenuOpen(false)} 
+                  className="hover:text-accent transition-colors capitalize"
+                >
+                  {cat.name}
+                </Link>
+              ))}
               <a href="#about" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent transition-colors">About</a>
               
               <div className="h-px bg-surface-2 mx-10 my-4"></div>
@@ -476,7 +499,7 @@ const Footer = () => {
           </p>
           <div className="flex space-x-6">
             <a href="#" className="text-foreground/40 hover:text-accent transition-colors"><Instagram className="w-5 h-5" /></a>
-            <a href="#" className="text-foreground/40 hover:text-accent transition-colors"><MessageCircle className="w-5 h-5" /></a>
+            <a href="https://wa.me/923297939629" target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-accent transition-colors"><MessageCircle className="w-5 h-5" /></a>
           </div>
         </div>
         
@@ -501,12 +524,11 @@ const Footer = () => {
         </div>
 
         <div>
-          <h4 className="font-bold mb-8 uppercase text-[10px] tracking-[0.3em] text-foreground/80">Karachi Studio</h4>
+          <h4 className="font-bold mb-8 uppercase text-[10px] tracking-[0.3em] text-foreground/80">Contact Us</h4>
           <p className="text-foreground/50 text-xs uppercase tracking-[0.2em] leading-loose">
-            Block 4, Clifton<br/>
-            Karachi, Pakistan<br/>
-            <span className="mt-4 block">hello@kiswa.pk</span>
-            <span>+92 300 1234567</span>
+            Faisalabad<br/>
+            <a href="mailto:hurairahrajpoot219@gmail.com" className="mt-4 block hover:text-accent transition-colors lowercase">hurairahrajpoot219@gmail.com</a>
+            <a href="https://wa.me/923297939629" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">+92 329 7939629</a>
           </p>
         </div>
       </div>
@@ -550,6 +572,13 @@ import NotFound from './NotFound';
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
 const MyAccount = lazy(() => import('./MyAccount'));
 
+// Dynamic category page — nayi category add hone par automatically kaam karta hai
+function DynamicCategoryPage() {
+  const { categorySlug } = useParams<{ categorySlug: string }>();
+  if (!categorySlug) return <NotFound />;
+  return <ProductListing categorySlug={categorySlug} />;
+}
+
 const PageLoader = () => (
   <div className="fixed inset-0 bg-[#0A0A0A] flex flex-col items-center justify-center z-[100]">
     <div className="w-16 h-16 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
@@ -565,14 +594,17 @@ export default function App() {
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Storefront />} />
+              {/* Specific hardcoded routes for backward compatibility */}
               <Route path="/clothing" element={<ProductListing categorySlug="everyday-wear" />} />
               <Route path="/watches" element={<ProductListing categorySlug="luxury-watches" />} />
+              {/* Dynamic category route — har nayi category automatically kaam karegi */}
               <Route path="/product/:slug" element={<ProductDetail />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
               <Route path="/track-order" element={<OrderTracking />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/account" element={<MyAccount />} />
+              <Route path="/:categorySlug" element={<DynamicCategoryPage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
             <Route path="/admin/*" element={<AdminDashboard />} />
