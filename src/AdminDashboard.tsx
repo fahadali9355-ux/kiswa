@@ -920,6 +920,7 @@ function OrdersView({ showToast }: { showToast: any }) {
             <tr>
               <th className="px-6 py-4 font-medium">Order ID</th>
               <th className="px-6 py-4 font-medium">Customer</th>
+              <th className="px-6 py-4 font-medium">Ship To</th>
               <th className="px-6 py-4 font-medium">Items</th>
               <th className="px-6 py-4 font-medium">Total</th>
               <th className="px-6 py-4 font-medium">Status</th>
@@ -929,12 +930,18 @@ function OrdersView({ showToast }: { showToast: any }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-2">
-            {loading ? <tr><td colSpan={7} className="py-8 text-center text-foreground/50">Loading orders...</td></tr> : 
-            filteredOrders.length === 0 ? <tr><td colSpan={7} className="py-8 text-center text-foreground/50">No orders found.</td></tr> :
-            filteredOrders.map(order => (
+            {loading ? <tr><td colSpan={9} className="py-8 text-center text-foreground/50">Loading orders...</td></tr> : 
+            filteredOrders.length === 0 ? <tr><td colSpan={9} className="py-8 text-center text-foreground/50">No orders found.</td></tr> :
+            filteredOrders.map(order => {
+              const addr = typeof order.shippingAddress === 'string' ? (order.shippingAddress.startsWith('{') ? JSON.parse(order.shippingAddress) : order.shippingAddress) : order.shippingAddress;
+              const shortAddr = typeof addr === 'object' 
+                ? [addr.line1, addr.city, addr.province].filter(Boolean).join(', ') || addr.address || 'N/A'
+                : (addr || 'N/A');
+              return (
               <tr key={order.id} className="hover:bg-surface-2/30 transition-colors">
                 <td className="px-6 py-4 font-mono text-xs">{order.id}</td>
                 <td className="px-6 py-4">{order.guestName || order.user?.name || 'Guest'}</td>
+                <td className="px-6 py-4 text-foreground/70 text-xs max-w-[200px]"><div className="truncate" title={shortAddr}>{shortAddr}</div></td>
                 <td className="px-6 py-4 text-foreground/70">{order.items?.length || 0} items</td>
                 <td className="px-6 py-4 font-medium">Rs. {order.totalAmount.toLocaleString()}</td>
                 <td className="px-6 py-4">
@@ -961,7 +968,8 @@ function OrdersView({ showToast }: { showToast: any }) {
                   </button>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
@@ -982,6 +990,21 @@ function OrderDetailModal({ order, onClose, updateStatus }) {
   };
 
   const address = typeof order.shippingAddress === 'string' ? (order.shippingAddress.startsWith('{') ? JSON.parse(order.shippingAddress) : order.shippingAddress) : order.shippingAddress;
+
+  // Build a readable full address string from the address object
+  const getFullAddress = (addr: any) => {
+    if (typeof addr === 'string') return addr;
+    const parts = [];
+    if (addr.line1) parts.push(addr.line1);
+    if (addr.line2) parts.push(addr.line2);
+    if (addr.city) parts.push(addr.city);
+    if (addr.province) parts.push(addr.province);
+    if (addr.postalCode) parts.push(addr.postalCode);
+    // fallback for older format
+    if (addr.address) parts.push(addr.address);
+    if (addr.country) parts.push(addr.country);
+    return parts.join(', ') || 'No address provided';
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1027,13 +1050,21 @@ function OrderDetailModal({ order, onClose, updateStatus }) {
                 <h4 className="text-xs uppercase tracking-widest text-foreground/40 font-bold mb-3">Shipping Address</h4>
                 <div className="bg-surface-1 p-4 rounded-sm border border-surface-2">
                   {typeof address === 'object' ? (
-                    <div className="text-xs text-foreground/80 space-y-1">
-                      <p>{address.address}</p>
-                      <p>{address.city}, {address.postalCode}</p>
+                    <div className="text-xs text-foreground/80 space-y-1.5">
+                      {address.line1 && <p className="font-medium text-foreground/90">{address.line1}</p>}
+                      {address.line2 && <p>{address.line2}</p>}
+                      <p>
+                        {address.city && <span>{address.city}</span>}
+                        {address.city && address.province && <span>, </span>}
+                        {address.province && <span>{address.province}</span>}
+                      </p>
+                      {address.postalCode && <p>Postal Code: {address.postalCode}</p>}
+                      {/* fallback for older format */}
+                      {address.address && <p className="font-medium text-foreground/90">{address.address}</p>}
                       {address.country && <p>{address.country}</p>}
                     </div>
                   ) : (
-                    <p className="text-xs text-foreground/80 leading-relaxed">{address}</p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{address || 'No address provided'}</p>
                   )}
                 </div>
               </div>
@@ -1070,10 +1101,17 @@ function OrderDetailModal({ order, onClose, updateStatus }) {
                           <td className="px-4 py-3">
                             <div className="font-medium text-foreground">{item.product?.name || 'Unknown Product'}</div>
                             {(item.variant?.size || item.variant?.color) && (
-                              <div className="text-[10px] text-accent mt-0.5">
-                                {item.variant.size && `Size: ${item.variant.size}`}
-                                {item.variant.size && item.variant.color && ' | '}
-                                {item.variant.color && `Color: ${item.variant.color}`}
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {item.variant.size && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wide">
+                                    SIZE: {item.variant.size}
+                                  </span>
+                                )}
+                                {item.variant.color && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold tracking-wide">
+                                    COLOR: {item.variant.color}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
