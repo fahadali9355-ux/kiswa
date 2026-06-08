@@ -179,35 +179,12 @@ function DashboardView() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
-  const [clearingData, setClearingData] = useState(false);
   const [stats, setStats] = useState({
     totalOrders: 0,
     todayOrders: 0,
     totalRevenue: 0,
     pendingOrders: 0
   });
-
-  const handleClearAllData = async () => {
-    const first = window.confirm('⚠️ Kya aap SARE products, categories aur orders delete karna chahte hain?\n\nYe action UNDO nahi ho sakta!');
-    if (!first) return;
-    const second = window.confirm('🔴 Doosri baar confirm karo: Sab kuch permanently delete ho jayega. Aage barho?');
-    if (!second) return;
-    
-    setClearingData(true);
-    try {
-      const res = await authFetch('/api/admin/clear-all-data', { method: 'DELETE' });
-      if (res.ok) {
-        alert('✅ Sab data successfully delete ho gaya!');
-        window.location.reload();
-      } else {
-        alert('❌ Error: Data delete nahi hua. Server error.');
-      }
-    } catch (e) {
-      alert('❌ Network error. Dobara try karo.');
-    } finally {
-      setClearingData(false);
-    }
-  };
 
   useEffect(() => {
     authFetch('/api/admin/orders?limit=5')
@@ -236,14 +213,6 @@ function DashboardView() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
         <h2 className="font-serif text-3xl">Overview</h2>
-        <button
-          onClick={handleClearAllData}
-          disabled={clearingData}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-wider uppercase border border-red-500/40 text-red-400/80 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500 transition-all rounded-sm disabled:opacity-50"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          {clearingData ? 'Deleting...' : 'Sab Data Clear Karo'}
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
