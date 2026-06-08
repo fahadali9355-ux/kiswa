@@ -224,13 +224,17 @@ app.post("/api/orders", async (req, res) => {
       items 
     } = req.body;
 
+    let effectiveUserId = null;
+    if (userId) {
+      const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (existingUser) effectiveUserId = existingUser.id;
+    }
+    
     // Auto-link to user if guestEmail matches an existing account
-    let effectiveUserId = userId;
     if (!effectiveUserId && guestEmail) {
       const existingUser = await prisma.user.findUnique({ where: { email: guestEmail } });
       if (existingUser) effectiveUserId = existingUser.id;
     }
-    
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
